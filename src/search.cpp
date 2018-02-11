@@ -697,6 +697,7 @@ namespace {
     if (   !PvNode
         &&  eval >= beta
         &&  ss->staticEval >= beta - int(320 * log(depth / ONE_PLY)) + 500 
+        &&  thisThread->selDepth + 5 > thisThread->rootDepth / ONE_PLY
         && (ss->ply >= thisThread->nmp_ply || ss->ply % 2 != thisThread->nmp_odd))
     {
 
