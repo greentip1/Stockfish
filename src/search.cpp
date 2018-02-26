@@ -67,7 +67,7 @@ namespace {
   const int SkipPhase[] = { 0, 1, 0, 1, 2, 3, 0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7 };
 
   // Razoring and futility margins
-  const int RazorMargin = 600;
+  const int RazorMargin = 590;
   Value futility_margin(Depth d) { return Value(150 * d / ONE_PLY); }
 
   // Futility and reductions lookup tables, initialized at startup
@@ -670,17 +670,9 @@ namespace {
 
     // Step 7. Razoring (skipped when in check)
     if (   !PvNode
-        &&  depth < 4 * ONE_PLY
+        &&  depth <= ONE_PLY
         &&  eval + RazorMargin <= alpha)
-    {
-        if (depth <= ONE_PLY)
-            return qsearch<NonPV, false>(pos, ss, alpha, alpha+1);
-
-        Value ralpha = alpha - RazorMargin;
-        Value v = qsearch<NonPV, false>(pos, ss, ralpha, ralpha+1);
-        if (v <= ralpha)
-            return v;
-    }
+        return qsearch<NonPV, false>(pos, ss, alpha, alpha+1);
 
     // Step 8. Futility pruning: child node (skipped when in check)
     if (   !rootNode
@@ -755,7 +747,18 @@ namespace {
                 assert(depth >= 5 * ONE_PLY);
 
                 pos.do_move(move, st);
-                value = -search<NonPV>(pos, ss+1, -rbeta, -rbeta+1, depth - 4 * ONE_PLY, !cutNode, false);
+
+                // Perform a preliminary search at depth 1 to verify that the move holds.
+                // We will only do this search if the depth is not 5, thus avoiding two
+                // searches at depth 1 in a row.
+                if (depth != 5 * ONE_PLY)
+                    value = -search<NonPV>(pos, ss+1, -rbeta, -rbeta+1, ONE_PLY, !cutNode, true);
+
+                // If the first search was skipped or was performed and held, perform
+                // the regular search.
+                if (depth == 5 * ONE_PLY || value >= rbeta)
+                    value = -search<NonPV>(pos, ss+1, -rbeta, -rbeta+1, depth - 4 * ONE_PLY, !cutNode, false);
+
                 pos.undo_move(move);
                 if (value >= rbeta)
                     return value;
@@ -771,6 +774,7 @@ namespace {
         search<NT>(pos, ss, alpha, beta, d, cutNode, true);
 
         tte = TT.probe(posKey, ttHit);
+        ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
         ttMove = ttHit ? tte->move() : MOVE_NONE;
     }
 
@@ -1177,8 +1181,8 @@ moves_loop: // When in check, search starts from here
     // Transposition table lookup
     posKey = pos.key();
     tte = TT.probe(posKey, ttHit);
-    ttMove = ttHit ? tte->move() : MOVE_NONE;
     ttValue = ttHit ? value_from_tt(tte->value(), ss->ply) : VALUE_NONE;
+    ttMove = ttHit ? tte->move() : MOVE_NONE;
 
     if (  !PvNode
         && ttHit
