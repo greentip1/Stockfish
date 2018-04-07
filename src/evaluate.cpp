@@ -520,7 +520,7 @@ namespace {
     Bitboard b, weak, defended, nonPawnEnemies, stronglyProtected, safeThreats;
     Score score = SCORE_ZERO;
 
-    // Non-pawn enemies attacked by a pawn
+    // Non-pawn enemies
     nonPawnEnemies = pos.pieces(Them) ^ pos.pieces(Them, PAWN);
 
     // Our safe or protected pawns
@@ -608,10 +608,10 @@ namespace {
     b = (pos.pieces(Us) ^ pos.pieces(Us, PAWN, KING)) & attackedBy[Us][ALL_PIECES];
     score += Connectivity * popcount(b);
 
-    // Overload: bonus for non-pawn enemies attacked and defended exactly once
-    b =  (pos.pieces(Them) ^ pos.pieces(Them, PAWN))
-       &  attackedBy[Us  ][ALL_PIECES] & ~attackedBy2[Us  ]
-       &  attackedBy[Them][ALL_PIECES] & ~attackedBy2[Them];
+    // Bonus for overload (non-pawn enemies attacked and defended exactly once)
+    b =  nonPawnEnemies
+       & attackedBy[Us][ALL_PIECES]   & ~attackedBy2[Us]
+       & attackedBy[Them][ALL_PIECES] & ~attackedBy2[Them];
     score += Overload * popcount(b);
 
     if (T)
